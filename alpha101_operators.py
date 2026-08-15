@@ -12,8 +12,17 @@ Alpha101 算子库（pandas 向量化实现）
 - 论文约定：非整数天数一律向下取整 floor(d)（本库所有 d 参数都用 int() 强制）
 - NaN 处理：滚动窗口不足则输出 NaN；rank 自动跳过 NaN
 """
-import numpy as np
+import sys
+import types as _types
 import pandas as pd
+# 防御性获取 numpy：历史上调试时发现旧版聚宽研究环境配合旧版 numpy 时，
+# np.log 作用在字符串数据上会报 "'str' object has no attribute 'log'"，
+# 极易误判为 numpy 被污染。这里统一从 sys.modules 取真实模块对象，
+# 不依赖 import 语句的绑定结果（在任何环境下都安全）。
+_np_mod = sys.modules.get('numpy')
+if _np_mod is None or not isinstance(_np_mod, _types.ModuleType):
+    _np_mod = __import__('numpy')          # 兜底：真正加载一次
+np = _np_mod
 
 
 def rank(x):
@@ -39,9 +48,12 @@ def ts_sum(x, d):
 
 
 def ts_product(x, d):
-    """过去 d 天的时间序列乘积"""
+    """过去 d 天的时间序列乘积（向量化 shift 实现）"""
     d = int(d)
-    return x.rolling(d, min_periods=d).apply(np.prod, raw=True)
+    out = x * 1.0
+    for i in range(1, d):
+        out = out * x.shift(i)
+    return out.where(x.rolling(d, min_periods=d).count() >= d)
 
 
 def ts_std(x, d):
@@ -77,15 +89,26 @@ def ts_rank(x, d):
 
 
 def ts_argmax(x, d):
-    """过去 d 天最大值出现在第几天（返回 0..d-1，0=当天，d-1=d 天前）"""
+    """过去 d 天最大值出现在第几天（返回 0..d-1，0=当天，d-1=d 天前）。
+    向量化实现：滚动最大值 + 从近到远找第一次等于最大值的位置。"""
     d = int(d)
-    return x.rolling(d, min_periods=d).apply(np.argmax, raw=True)
+    mx = x.rolling(d, min_periods=d).max()
+    out = pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    for i in range(d):
+        eq = (x.shift(i) == mx) & out.isna()
+        out = out.mask(eq, float(i))
+    return out
 
 
 def ts_argmin(x, d):
-    """过去 d 天最小值出现在第几天（返回 0..d-1）"""
+    """过去 d 天最小值出现在第几天（返回 0..d-1）。向量化实现同 ts_argmax。"""
     d = int(d)
-    return x.rolling(d, min_periods=d).apply(np.argmin, raw=True)
+    mn = x.rolling(d, min_periods=d).min()
+    out = pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    for i in range(d):
+        eq = (x.shift(i) == mn) & out.isna()
+        out = out.mask(eq, float(i))
+    return out
 
 
 def correlation(x, y, d):
@@ -113,11 +136,15 @@ def signedpower(x, a):
 
 def decay_linear(x, d):
     """过去 d 天的线性衰减加权移动平均。
-    权重为 d, d-1, ..., 1（最近一天权重最大），缩放使权重和为 1。"""
+    权重为 d, d-1, ..., 1（最近一天权重最大），缩放使权重和为 1。
+    向量化 shift 实现（避免 rolling.apply 在 101 因子全量计算时的性能问题）。"""
     d = int(d)
     w = np.arange(d, 0, -1, dtype=float)
     w = w / w.sum()
-    return x.rolling(d, min_periods=d).apply(lambda v: np.dot(v, w), raw=True)
+    out = x * w[0]
+    for i in range(1, d):
+        out = out + x.shift(i) * w[i]
+    return out.where(x.rolling(d, min_periods=d).count() >= d)
 
 
 def indneutralize(x, g):
