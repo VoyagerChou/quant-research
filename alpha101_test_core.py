@@ -62,9 +62,11 @@ SEC_BATCH  = 150                            # 拉行情时分批次（防单次�
 MIN_HIST   = 120                            # 剔除上市不满 120 个交易日的次新
 
 # ===== 本次运行的因子范围（手动分批跑，防内存爆）=====
-# 改这两个数字即可：11~20, 21~30, ..., 91~101，每批结果存独立目录互不覆盖
-FACTOR_START, FACTOR_END = 11, 20
-RESULT_DIR = 'results_alpha%03d_%03d' % (FACTOR_START, FACTOR_END)
+# 本地运行时内存无压力，直接设 1, 101 一批跑完；聚宽上跑才需要分批
+FACTOR_START, FACTOR_END = 1, 101
+# 结果目录带指数代码，避免不同指数的结果互相覆盖
+RESULT_DIR = 'results_alpha%03d_%03d_%s' % (FACTOR_START, FACTOR_END, INDEX_CODE.split('.')[0])
+SKIP_PLOTS = True      # 跳过出图（本地大批量跑时提速；需要看图再设 False）
 
 # 训练期切片（分时段稳定性检验：因子需在每段 ICIR 均为正）
 TRAIN_SLICES = [
@@ -539,33 +541,36 @@ def main():
                          index=False, encoding='utf-8-sig')
 
             # ---- 作图：累计 IC + 多空净值（训练/验证分线）----
-            try:
-                fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
-                ic_plot = rank_ic_from_ranked(fac_neu_r, fwd_ranked[HORIZONS[-1]]).cumsum()
-                ax = axes[0]
-                for pname, (ps, pe) in [('训练期', (TRAIN_START, TRAIN_END)),
-                                        ('验证期', (VALID_START, VALID_END))]:
-                    seg = ic_plot.loc[ps:pe].dropna()
-                    if len(seg) > 1:
-                        # 用整数横轴绘图，避开旧版 matplotlib 日期轴转换的坑
-                        ax.plot(range(len(seg)), seg.values, label=pname)
-                ax.axhline(0, color='grey', lw=0.6)
-                ax.set_title('%s 累计RankIC(%d日,中性化)' % (name, HORIZONS[-1]))
-                ax.legend()
-                ax = axes[1]
-                _, ls_net = layered_backtest(fac_neu_r, ret1)
-                for pname, (ps, pe) in [('训练期', (TRAIN_START, TRAIN_END)),
-                                        ('验证期', (VALID_START, VALID_END))]:
-                    seg = ls_net.loc[ps:pe].dropna()
-                    if len(seg) > 1:
-                        ax.plot(range(len(seg)), seg.values, label=pname)
-                ax.set_title('%s 多空净值(中性化,日调仓未扣费)' % name)
-                ax.legend()
-                plt.tight_layout()
-                plt.savefig(os.path.join(RESULT_DIR, '%s.png' % name), dpi=100)
-                plt.show()
-            except Exception as e:
-                print('  [警告] %s 作图失败: %s' % (name, e))
+            if SKIP_PLOTS:
+                pass
+            else:
+                try:
+                    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
+                    ic_plot = rank_ic_from_ranked(fac_neu_r, fwd_ranked[HORIZONS[-1]]).cumsum()
+                    ax = axes[0]
+                    for pname, (ps, pe) in [('训练期', (TRAIN_START, TRAIN_END)),
+                                            ('验证期', (VALID_START, VALID_END))]:
+                        seg = ic_plot.loc[ps:pe].dropna()
+                        if len(seg) > 1:
+                            # 用整数横轴绘图，避开旧版 matplotlib 日期轴转换的坑
+                            ax.plot(range(len(seg)), seg.values, label=pname)
+                    ax.axhline(0, color='grey', lw=0.6)
+                    ax.set_title('%s 累计RankIC(%d日,中性化)' % (name, HORIZONS[-1]))
+                    ax.legend()
+                    ax = axes[1]
+                    _, ls_net = layered_backtest(fac_neu_r, ret1)
+                    for pname, (ps, pe) in [('训练期', (TRAIN_START, TRAIN_END)),
+                                            ('验证期', (VALID_START, VALID_END))]:
+                        seg = ls_net.loc[ps:pe].dropna()
+                        if len(seg) > 1:
+                            ax.plot(range(len(seg)), seg.values, label=pname)
+                    ax.set_title('%s 多空净值(中性化,日调仓未扣费)' % name)
+                    ax.legend()
+                    plt.tight_layout()
+                    plt.savefig(os.path.join(RESULT_DIR, '%s.png' % name), dpi=100)
+                    plt.show()
+                except Exception as e:
+                    print('  [警告] %s 作图失败: %s' % (name, e))
             # 释放本因子临时对象，防内存累积
             del f, f_r, fac_neu, fac_neu_r
             gc.collect()

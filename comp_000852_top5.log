@@ -1,0 +1,38 @@
+[comp] 使用自定义因子子集: ['alpha006', 'alpha015', 'alpha026', 'alpha003', 'alpha019']
+  ST 表 dtype: {dtype('bool'): 2727}
+
+===== 复合因子 vs 单因子：验证期 ICIR（5个周期）=====
+horizon       1      2      3      4      5
+factor                                     
+alpha003  0.281  0.333  0.352  0.367  0.389
+alpha006  0.306  0.368  0.440  0.467  0.492
+alpha015  0.370  0.402  0.433  0.436  0.431
+alpha019  0.248  0.239  0.249  0.260  0.274
+alpha026  0.337  0.348  0.366  0.387  0.395
+comp_eq   0.438  0.485  0.539  0.559  0.574
+comp_w    0.440  0.487  0.536  0.551  0.563
+
+===== 分层多空绩效（train/valid）=====
+  factor   version period  年化收益    夏普   最大回撤   月胜率     G1     G2     G3     G4     G5
+ comp_eq composite  train 0.282 3.490 -0.061 0.815 -0.129 -0.016  0.063  0.064  0.123
+ comp_eq composite  valid 0.174 2.256 -0.059 0.750  0.071  0.160  0.189  0.245  0.260
+  comp_w composite  train 0.281 3.550 -0.061 0.843 -0.126  0.002  0.061  0.056  0.126
+  comp_w composite  valid 0.159 2.191 -0.060 0.750  0.074  0.159  0.204  0.236  0.249
+alpha006       neu  train 0.223 2.976 -0.088 0.806 -0.094  0.037  0.083  0.090  0.114
+alpha006       neu  valid 0.242 3.296 -0.039 0.833  0.042  0.171  0.182  0.243  0.299
+alpha015       neu  train 0.170 2.868 -0.055 0.787 -0.043  0.007  0.043  0.086  0.124
+alpha015       neu  valid 0.024 0.522 -0.051 0.542  0.193  0.141  0.171  0.194  0.225
+alpha026       neu  train 0.218 3.250 -0.043 0.815 -0.076 -0.013  0.050  0.086  0.129
+alpha026       neu  valid 0.033 0.623 -0.056 0.583  0.187  0.169  0.143  0.198  0.229
+alpha003       neu  train 0.179 2.864 -0.076 0.806 -0.059  0.011  0.076  0.088  0.114
+alpha003       neu  valid 0.134 2.467 -0.048 0.667  0.055  0.143  0.218  0.171  0.201
+alpha019       neu  train 0.169 1.896 -0.195 0.685 -0.155 -0.070 -0.025 -0.015 -0.011
+alpha019       neu  valid 0.108 1.257 -0.092 0.667  0.123  0.145  0.204  0.224  0.238
+
+输出目录: results_composite_000852_top5/
+  results_composite_000852_top5/comp_eq_z.csv
+  results_composite_000852_top5/comp_w_z.csv
+  results_composite_000852_top5/composite_compare.png
+  results_composite_000852_top5/ic_stats_composite.csv
+  results_composite_000852_top5/layered_stats_composite.csv
+  results_composite_000852_top5/weights_history.csv

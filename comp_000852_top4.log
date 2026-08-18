@@ -1,0 +1,35 @@
+[comp] 使用自定义因子子集: ['alpha006', 'alpha015', 'alpha026', 'alpha003']
+  ST 表 dtype: {dtype('bool'): 2727}
+
+===== 复合因子 vs 单因子：验证期 ICIR（5个周期）=====
+horizon       1      2      3      4      5
+factor                                     
+alpha003  0.281  0.333  0.352  0.367  0.389
+alpha006  0.306  0.368  0.440  0.467  0.492
+alpha015  0.370  0.402  0.433  0.436  0.431
+alpha026  0.337  0.348  0.366  0.387  0.395
+comp_eq   0.412  0.473  0.521  0.539  0.549
+comp_w    0.415  0.471  0.514  0.526  0.534
+
+===== 分层多空绩效（train/valid）=====
+  factor   version period  年化收益    夏普   最大回撤   月胜率     G1     G2    G3    G4    G5
+ comp_eq composite  train 0.264 3.566 -0.052 0.824 -0.116 -0.019 0.064 0.054 0.123
+ comp_eq composite  valid 0.158 2.243 -0.045 0.708  0.069  0.159 0.203 0.249 0.244
+  comp_w composite  train 0.257 3.527 -0.061 0.843 -0.114 -0.006 0.066 0.049 0.120
+  comp_w composite  valid 0.141 2.106 -0.048 0.750  0.086  0.154 0.191 0.247 0.244
+alpha006       neu  train 0.223 2.976 -0.088 0.806 -0.094  0.037 0.083 0.090 0.114
+alpha006       neu  valid 0.242 3.296 -0.039 0.833  0.042  0.171 0.182 0.243 0.299
+alpha015       neu  train 0.170 2.868 -0.055 0.787 -0.043  0.007 0.043 0.086 0.124
+alpha015       neu  valid 0.024 0.522 -0.051 0.542  0.193  0.141 0.171 0.194 0.225
+alpha026       neu  train 0.218 3.250 -0.043 0.815 -0.076 -0.013 0.050 0.086 0.129
+alpha026       neu  valid 0.033 0.623 -0.056 0.583  0.187  0.169 0.143 0.198 0.229
+alpha003       neu  train 0.179 2.864 -0.076 0.806 -0.059  0.011 0.076 0.088 0.114
+alpha003       neu  valid 0.134 2.467 -0.048 0.667  0.055  0.143 0.218 0.171 0.201
+
+输出目录: results_composite_000852_top4/
+  results_composite_000852_top4/comp_eq_z.csv
+  results_composite_000852_top4/comp_w_z.csv
+  results_composite_000852_top4/composite_compare.png
+  results_composite_000852_top4/ic_stats_composite.csv
+  results_composite_000852_top4/layered_stats_composite.csv
+  results_composite_000852_top4/weights_history.csv
