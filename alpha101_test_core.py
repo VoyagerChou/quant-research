@@ -45,7 +45,33 @@ _np_mod = sys.modules.get('numpy')
 if _np_mod is None or not isinstance(_np_mod, _types.ModuleType):
     _np_mod = __import__('numpy')          # 兜底：真正加载一次
 np = _np_mod
-from jqdata import *
+try:
+    from jqdata import *
+except Exception:
+    pass
+# ==== 回测环境 API 兜底 ====
+# 聚宽回测（jqboson）把 API 注入主策略模块（user_code）的全局命名空间，
+# 上传的辅助模块经 import 加载时看不到这些全局函数。兜底策略：
+#   1) 从 __main__ 模块取（若用户代码以 __main__ 运行）
+#   2) 扫描 sys.modules，找任意持有该 API 的模块（user_code 等）
+# 研究环境 `from jqdata import *` 已提供 API，本兜底不会覆盖。
+_API_NAMES = ('get_price', 'get_index_stocks', 'get_valuation', 'get_extras',
+              'get_industry', 'get_trade_days')
+import __main__ as _main_mod
+for _api in _API_NAMES:
+    if _api in globals():
+        continue
+    _f = getattr(_main_mod, _api, None)
+    if _f is None:
+        for _mod in list(sys.modules.values()):
+            try:
+                _f = getattr(_mod, _api, None)
+            except Exception:
+                _f = None
+            if _f is not None:
+                break
+    if _f is not None:
+        globals()[_api] = _f
 from alpha101_factors import FACTOR_FUNCS
 
 plt.rcParams['font.sans-serif'] = ['SimHei']      # 中文显示
@@ -97,17 +123,34 @@ def fetch_price(stocks, start, end):
     """
     fields = ['open', 'close', 'high', 'low', 'volume', 'money', 'avg']
     out = {f: [] for f in fields}
+    # 回测环境注意事项：get_price(fq='pre') 必须显式传前复权基准日期
+    # pre_factor_ref_date，否则报"请设置前复权基准日期"。研究环境自动
+    # 默认。用 __code__.co_varnames 探测参数是否存在（jqfactor_analyzer
+    # 同款做法），避免老环境传参报 TypeError。
+    _kw = {}
+    try:
+        if 'pre_factor_ref_date' in get_price.__code__.co_varnames:
+            _kw['pre_factor_ref_date'] = end
+    except Exception:
+        pass
     for i in range(0, len(stocks), SEC_BATCH):
         batch = stocks[i:i + SEC_BATCH]
         try:
             p = get_price(batch, start_date=start, end_date=end,
                           frequency='daily', fields=fields,
-                          skip_paused=False, fq='pre', panel=True, fill_paused=False)
+                          skip_paused=False, fq='pre', panel=True,
+                          fill_paused=False, **_kw)
         except TypeError:
             # 极老版本没有 fill_paused 参数时的兜底
             p = get_price(batch, start_date=start, end_date=end,
                           frequency='daily', fields=fields,
-                          skip_paused=False, fq='pre', panel=True)
+                          skip_paused=False, fq='pre', panel=True, **_kw)
+        # 返回结构自适应：
+        #   - 旧版 panel=True → Panel（p[f] 是 日期×股票 DataFrame）
+        #   - 新版宽表 dict[str, DataFrame]（p[f] 同样是宽表）
+        #   - 新版 MultiIndex DataFrame（index 含 time,code）→ 转宽表
+        if isinstance(p, pd.DataFrame) and 'code' in p.index.names:
+            p = {f: p[f].unstack('code').sort_index() for f in fields}
         for f in fields:
             # float32 存储：内存减半，OHLCV 精度完全足够
             out[f].append(p[f].astype(np.float32))
@@ -223,8 +266,12 @@ def fetch_market_cap(stocks, start, end):
 
 
 def fetch_st(stocks, start, end):
-    """ST 状态表，返回 DataFrame(日期×股票)，True=ST"""
+    """ST 状态表，返回 DataFrame(日期×股票)，True=ST。
+    兼容新旧返回结构：宽表(日期×股票) / MultiIndex(time,code) 长表。"""
     st = get_extras('is_st', stocks, start_date=start, end_date=end)
+    if isinstance(st, pd.DataFrame) and 'code' in st.index.names:
+        st = st['is_st'].unstack('code').sort_index() if 'is_st' in st.columns \
+            else st.iloc[:, 0].unstack('code').sort_index()
     print('  ST 表 dtype:', st.dtypes.value_counts().to_dict())
     return st
 

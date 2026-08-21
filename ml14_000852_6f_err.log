@@ -1,0 +1,4 @@
+D:\Python3.12\Lib\site-packages\numpy\_core\_methods.py:49: RuntimeWarning: invalid value encountered in reduce
+  return umr_sum(a, axis, dtype, out, keepdims, initial, where)
+D:\Quant\Quant_research\code\run_ml_flex.py:363: RuntimeWarning: Mean of empty slice
+  stacked = np.nanmean(np.stack([p.values for p in panels], axis=0), axis=0)

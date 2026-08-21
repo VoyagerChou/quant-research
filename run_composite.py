@@ -38,7 +38,7 @@ if _env_factors:
     CORR_FACTORS = [x.strip() for x in _env_factors.split(',')]
     print('[comp] 使用自定义因子子集: %s' % CORR_FACTORS)
 COMP_TAG = os.environ.get('COMP_TAG', '')
-OUT_DIR = 'results_composite_%s%s' % (jqdata._get_active_index(), COMP_TAG)
+OUT_DIR = os.path.join(r'D:\Quant\Quant_research', 'results_composite_%s%s' % (jqdata._get_active_index(), COMP_TAG))
 IC_WINDOW = 252          # ICIR 滚动窗口（交易日，约 12 个月）
 IC_MINP = 60             # 最小样本数（少于它则权重为 NaN）
 
@@ -110,7 +110,7 @@ def build_composites(panels, price):
     # ---- 方向对齐后的 z-score ----
     aligned = {n: z_scores[n].mul(signs[n], axis=0) for n in names}
     z_arr = np.nan_to_num(np.stack([aligned[n].values for n in names])
-                           .astype(np.float32), nan=0.0)  # (6, T, N)
+                           .astype(np.float32))  # (6, T, N)
 
     # 等权：跳过 NaN 取平均
     comp_eq = pd.DataFrame(np.nanmean(z_arr, axis=0), index=idx, columns=cols)
@@ -122,6 +122,57 @@ def build_composites(panels, price):
     comp_w = pd.DataFrame(comp_w_vals, index=idx, columns=cols)
 
     return comp_eq, comp_w, ic_series, w
+
+
+def build_orth(panels, price, names, idx, cols):
+    """正交化+ICIR 复合：逐日截面对称白化（Z_orth = Zc @ Sigma^{-1/2}，
+    因子间相关归零），再按滚动 ICIR 加权（严格只用 t-1 及以前信息）。
+
+    白化矩阵用当日截面协方差（同 z-score 一样是时点截面统计，不含未来收益），
+    方向对齐与权重用滚动 IC（shift(1)），无前视。"""
+    K = len(names)
+    z_stack = np.stack([panels[n].values for n in names], axis=2).astype(np.float32)
+    T, N, _ = z_stack.shape
+    out = np.full_like(z_stack, np.nan, dtype=np.float32)
+    for t in range(T):
+        zt = z_stack[t]
+        ok = np.isfinite(zt).all(axis=1)
+        if ok.sum() <= K:
+            continue
+        Z = zt[ok]
+        Zc = Z - Z.mean(axis=0)
+        S = (Zc.T @ Zc) / (len(Zc) - 1)
+        try:
+            U, s, _ = np.linalg.svd(S, full_matrices=False)
+            s = np.maximum(s, 1e-8)
+            Sinv_half = (U / np.sqrt(s)) @ U.T
+        except np.linalg.LinAlgError:
+            continue
+        out[t, ok] = Zc @ Sinv_half
+    orth = {names[k]: pd.DataFrame(out[:, :, k], index=idx, columns=cols)
+            for k in range(K)}
+    # 正交化后方向不确定：用滚动 IC 符号重新对齐，滚动 ICIR 加权
+    fwd1 = core.forward_returns(price['close'], 1)
+    fwd1_r = fwd1.rank(axis=1, pct=True).astype(np.float32)
+    ic_series = {}
+    for n, f in orth.items():
+        f_r = f.rank(axis=1, pct=True).astype(np.float32)
+        ic_series[n] = core.rank_ic_from_ranked(f_r, fwd1_r)
+    ic_df = pd.DataFrame(ic_series)
+    ic_mean = ic_df.rolling(IC_WINDOW, min_periods=IC_MINP).mean().shift(1)
+    ic_std = ic_df.rolling(IC_WINDOW, min_periods=IC_MINP).std().shift(1)
+    icir = ic_mean / ic_std.replace(0, np.nan)
+    signs = np.sign(ic_mean)
+    w_abs = icir.abs()
+    wsum = w_abs.sum(axis=1)
+    w = w_abs.div(wsum.replace(0, np.nan), axis=0)
+    aligned = {n: orth[n].mul(signs[n], axis=0) for n in names}
+    z_arr = np.nan_to_num(np.stack([aligned[n].values for n in names])
+                           .astype(np.float32))
+    comp_orth_vals = np.einsum('tn,nts->ts', w.fillna(0).values, z_arr)
+    comp_orth_vals = np.where(np.isnan(wsum.values)[:, None], np.nan, comp_orth_vals)
+    comp_orth = pd.DataFrame(comp_orth_vals, index=idx, columns=cols)
+    return comp_orth, ic_series, w
 
 
 def test_composite(cname, c, fwd_ranked, ret1, ic_periods, ic_rows, ls_rows):
@@ -150,10 +201,13 @@ def main():
     core._log('===== [comp] RUN START =====')
     panels, price, valid_mask = build_panels()
     comp_eq, comp_w, ic_series, w = build_composites(panels, price)
+    comp_orth, orth_ic, orth_w = build_orth(panels, price, list(panels.keys()),
+                                            panels[list(panels.keys())[0]].index,
+                                            panels[list(panels.keys())[0]].columns)
 
     # 有效掩码对齐（复合因子列 = 中性化后列），写 CSV 前必须应用掩码，
     # 否则非成分股被 nan_to_num 填成 0，下游排名/分层会被污染
-    for cname, c in [('comp_eq', comp_eq), ('comp_w', comp_w)]:
+    for cname, c in [('comp_eq', comp_eq), ('comp_w', comp_w), ('comp_orth', comp_orth)]:
         c = c.where(valid_mask.reindex(columns=c.columns))
         c.to_csv(os.path.join(OUT_DIR, '%s_z.csv' % cname), encoding='utf-8-sig')
 
@@ -168,7 +222,7 @@ def main():
 
     # 复合因子
     ls_nets = {}
-    for cname, c in [('comp_eq', comp_eq), ('comp_w', comp_w)]:
+    for cname, c in [('comp_eq', comp_eq), ('comp_w', comp_w), ('comp_orth', comp_orth)]:
         c = c.where(valid_mask.reindex(columns=c.columns))
         ls_nets[cname] = test_composite(cname, c, fwd_ranked, ret1,
                                         ic_periods, ic_rows, ls_rows)

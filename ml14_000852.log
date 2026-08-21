@@ -1,0 +1,51 @@
+  ST 表 dtype: {dtype('bool'): 2727}
+
+===== 测试段(2024-2025) ICIR 对比 =====
+horizon         1      2      3      4      5
+factor                                       
+avg_ret3    0.455  0.509  0.552  0.582  0.603
+avg_ret5    0.446  0.492  0.530  0.553  0.567
+comp_eq14   0.536  0.566  0.644  0.695  0.726
+comp_w14    0.535  0.572  0.644  0.684  0.714
+lgb_ret3    0.455  0.496  0.531  0.557  0.583
+lgb_ret5    0.443  0.475  0.506  0.527  0.543
+rf_ret3     0.479  0.542  0.588  0.618  0.637
+rf_ret5     0.448  0.515  0.574  0.604  0.623
+ridge_ret3  0.535  0.603  0.681  0.729  0.758
+ridge_ret5  0.524  0.592  0.668  0.711  0.740
+xgb_ret3    0.431  0.484  0.529  0.560  0.578
+xgb_ret5    0.438  0.482  0.522  0.545  0.559
+
+===== 分层多空（测试段）=====
+    factor version period  年化收益    夏普   最大回撤   月胜率     G1     G2    G3    G4    G5
+ridge_ret3      ml  valid 0.247 2.151 -0.083 0.750  0.000  0.175 0.262 0.228 0.268
+  xgb_ret3      ml  valid 0.207 1.569 -0.087 0.708  0.010  0.198 0.221 0.255 0.244
+  lgb_ret3      ml  valid 0.223 1.823 -0.081 0.708  0.033  0.155 0.254 0.201 0.284
+   rf_ret3      ml  valid 0.274 2.154 -0.062 0.792 -0.009  0.201 0.224 0.232 0.286
+ridge_ret5      ml  valid 0.258 2.217 -0.081 0.750 -0.001  0.165 0.263 0.227 0.278
+  xgb_ret5      ml  valid 0.221 1.724 -0.094 0.708  0.027  0.134 0.248 0.243 0.276
+  lgb_ret5      ml  valid 0.258 1.999 -0.083 0.750  0.021  0.154 0.228 0.219 0.307
+   rf_ret5      ml  valid 0.210 1.737 -0.093 0.792  0.022  0.178 0.243 0.221 0.261
+  avg_ret3      ml  valid 0.256 1.974 -0.076 0.750  0.009  0.191 0.234 0.206 0.290
+  avg_ret5      ml  valid 0.244 1.873 -0.079 0.750  0.016  0.163 0.216 0.244 0.288
+ comp_eq14  linear  valid 0.123 2.164 -0.040 0.708  0.112 -0.023 0.228 0.015 0.255
+  comp_w14  linear  valid 0.126 2.100 -0.037 0.708  0.108  0.002 0.228 0.225 0.255
+
+输出目录: D:\Quant\Quant_research\results_ml14_000852/
+  D:\Quant\Quant_research\results_ml14_000852/debug_log.txt
+  D:\Quant\Quant_research\results_ml14_000852/feature_importance.csv
+  D:\Quant\Quant_research\results_ml14_000852/ic_stats_ml.csv
+  D:\Quant\Quant_research\results_ml14_000852/layered_stats_ml.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_avg_ret3.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_avg_ret5.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_comp_eq14.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_comp_w14.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_lgb_ret3.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_lgb_ret5.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_rf_ret3.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_rf_ret5.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_ridge_ret3.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_ridge_ret5.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_xgb_ret3.csv
+  D:\Quant\Quant_research\results_ml14_000852/pred_xgb_ret5.csv
+  D:\Quant\Quant_research\results_ml14_000852/turnover_ml.csv
